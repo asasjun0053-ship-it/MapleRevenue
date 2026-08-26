@@ -1,0 +1,18 @@
+{
+  "name": "mesolog-server",
+  "version": "1.0.0",
+  "description": "메소로그 - 넥슨 오픈 API 프록시 서버 (캐릭터 전투력 자동 조회용)",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}
