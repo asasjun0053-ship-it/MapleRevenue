@@ -151,7 +151,11 @@ app.post('/api/entries', async (req, res) => {
     res.status(err.status || 500).json({ error: err.message || '저장에 실패했어요.' });
   }
 });
+app.use(express.static(__dirname));
 
+app.get('/', (req, res) => {
+  res.sendFile(__dirname + '/index.html');
+});
 app.listen(PORT, () => {
   console.log(`메소로그 프록시 서버 실행 중: http://localhost:${PORT}`);
 });
