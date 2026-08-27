@@ -6,10 +6,17 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const NEXON_API_KEY = process.env.NEXON_API_KEY;
 const NEXON_BASE = 'https://open.api.nexon.com/maplestory/v1';
+const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 
 if (!NEXON_API_KEY) {
   console.warn('[경고] NEXON_API_KEY가 설정되지 않았어요. .env 파일을 확인해주세요.');
 }
+if (!UPSTASH_URL || !UPSTASH_TOKEN) {
+  console.warn('[경고] UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN이 설정되지 않았어요. 동기화 기능이 동작하지 않아요.');
+}
+
+app.use(express.json({ limit: '2mb' }));
 
 // 프론트엔드에서만 호출하도록 origin 제한 (배포 후 .env의 ALLOWED_ORIGIN을 실제 주소로 좁혀주세요)
 const allowedOrigin = process.env.ALLOWED_ORIGIN || '*';
@@ -87,6 +94,63 @@ app.get('/api/character', async (req, res) => {
 });
 
 app.get('/health', (req, res) => res.json({ ok: true }));
+
+// --- 동기화 코드 기반 수익 기록 저장/조회 (Upstash Redis) ---
+
+async function upstashCommand(cmd) {
+  if (!UPSTASH_URL || !UPSTASH_TOKEN) {
+    const err = new Error('동기화 저장소가 설정되지 않았어요. 서버 관리자에게 문의해주세요.');
+    err.status = 500;
+    throw err;
+  }
+  const res = await fetch(UPSTASH_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${UPSTASH_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(cmd),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    const err = new Error(data?.error || '동기화 저장소 오류');
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+function normalizeCode(raw) {
+  return (raw || '').trim().slice(0, 64);
+}
+
+app.get('/api/entries', async (req, res) => {
+  const code = normalizeCode(req.query.code);
+  if (!code) {
+    return res.status(400).json({ error: '동기화 코드를 입력해주세요.' });
+  }
+  try {
+    const result = await upstashCommand(['GET', `mesolog:entries:${code}`]);
+    const entries = result.result ? JSON.parse(result.result) : [];
+    res.json({ entries });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || '불러오기에 실패했어요.' });
+  }
+});
+
+app.post('/api/entries', async (req, res) => {
+  const code = normalizeCode(req.body?.code);
+  const entries = Array.isArray(req.body?.entries) ? req.body.entries : null;
+  if (!code || !entries) {
+    return res.status(400).json({ error: '동기화 코드와 기록 데이터가 필요해요.' });
+  }
+  try {
+    await upstashCommand(['SET', `mesolog:entries:${code}`, JSON.stringify(entries)]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message || '저장에 실패했어요.' });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`메소로그 프록시 서버 실행 중: http://localhost:${PORT}`);
