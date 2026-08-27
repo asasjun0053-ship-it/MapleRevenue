@@ -281,10 +281,10 @@
     <h2>내 캐릭터 <span class="tag" id="char-updated"></span></h2>
     <div id="char-cards" class="char-cards"><div class="empty small-empty">아래 설정에서 캐릭터를 한 번 등록해두면, 접속할 때마다 전투력이 자동으로 떠요</div></div>
 
- <details id="char-settings" style="margin-top:14px;">
+<details id="char-settings" style="margin-top:14px;">
       <summary style="cursor:pointer;font-size:12.5px;color:var(--text-dim);">캐릭터 / 서버 설정</summary>
       <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
-        <!-- 화면엔 안 보이지만 자바스크립트가 주소를 읽을 수 있게 숨겨둠 -->
+        <!-- 프록시 서버 주소는 화면에 보이지 않도록 숨김 처리 -->
         <input type="hidden" id="server-url" value="https://maplerevenue-1.onrender.com">
         
         <div>
@@ -292,7 +292,7 @@
           <input type="text" id="sync-code" placeholder="예: 아이젠하르트sync2024">
         </div>
 
-        <button type="button" id="btn-save-settings" onclick="saveSettings()" class="btn primary" style="width:100%;margin-top:4px;">설정 저장 및 데이터 불러오기</button>
+        <button type="button" id="btn-save-settings" onclick="saveSettings()" class="btn primary" style="width:100%;margin-top:4px;">설정 저장하기</button>
       </div>
     </details>
   </div>
@@ -1135,14 +1135,17 @@ document.getElementById('server-url').addEventListener('change', (e) => {
 
 document.getElementById('sync-code').addEventListener('change', async (e) => {
   syncCode = e.target.value.trim();
+  
+  // 프록시 주소가 비어있으면 지정된 Render 주소로 강제 연결
+  if (!serverUrl) {
+    serverUrl = 'https://maplerevenue-1.onrender.com';
+  }
+  
   saveSettings();
   const errBox = document.getElementById('sync-err');
-  errBox.style.display = 'none';
-  if (syncCode && !serverUrl){
-    errBox.textContent = '동기화하려면 먼저 프록시 서버 주소를 입력해주세요.';
-    errBox.style.display = 'block';
-    return;
-  }
+  if (errBox) errBox.style.display = 'none';
+
+  // 에러 차단막을 치우고 곧바로 서버에서 내 기록을 불러옵니다.
   await loadEntries();
   renderAll();
 });
