@@ -281,19 +281,18 @@
     <h2>내 캐릭터 <span class="tag" id="char-updated"></span></h2>
     <div id="char-cards" class="char-cards"><div class="empty small-empty">아래 설정에서 캐릭터를 한 번 등록해두면, 접속할 때마다 전투력이 자동으로 떠요</div></div>
 
-  <details id="char-settings" style="margin-top:14px;">
+ <details id="char-settings" style="margin-top:14px;">
       <summary style="cursor:pointer;font-size:12.5px;color:var(--text-dim);">캐릭터 / 서버 설정</summary>
       <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
-        <!-- 프록시 서버 주소는 보이지 않게 고정 값으로 처리 -->
+        <!-- 프록시 서버 주소 자동 고정 -->
         <input type="hidden" id="server-url" value="https://maplerevenue-1.onrender.com">
         
         <div>
-          <label for="sync-code">동기화 코드 <span style="color:var(--text-faint)">(다른 PC에서도 같은 코드를 입력하면 같은 기록이 보여요)</span></label>
+          <label for="sync-code">동기화 코드 <span style="color:var(--text-faint)">(기존 사용하던 동기화 코드를 입력하세요)</span></label>
           <input type="text" id="sync-code" placeholder="예: 아이젠하르트sync2024">
         </div>
 
-        <!-- 복원된 저장/등록 버튼 -->
-        <button type="button" id="btn-save-settings" class="btn primary" style="width:100%;margin-top:4px;">설정 저장하기</button>
+       <button type="button" id="btn-save-settings" onclick="saveSettings()" class="btn primary" style="width:100%;margin-top:4px;">설정 저장 및 데이터 불러오기</button>
       </div>
     </details>
   </div>
