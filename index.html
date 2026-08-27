@@ -284,23 +284,13 @@
     <details id="char-settings" style="margin-top:14px;">
       <summary style="cursor:pointer;font-size:12.5px;color:var(--text-dim);">캐릭터 / 서버 설정</summary>
       <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
-      <div style="display: none;">
-  <label for="server-url">프록시 서버 주소</label>
-  <input type="hidden" id="server-url" value="https://maplerevenue-1.onrender.com">
-</div>
+        <!-- 프록시 서버 주소는 비노출 처리하되, 값과 자바스크립트 참조는 유지 -->
+        <input type="hidden" id="server-url" value="https://maplerevenue-1.onrender.com">
+        
+        <div>
           <label for="sync-code">동기화 코드 <span style="color:var(--text-faint)">(다른 PC에서도 같은 코드를 입력하면 같은 기록이 보여요)</span></label>
           <input type="text" id="sync-code" placeholder="예: 아이젠하르트sync2024">
         </div>
-        <div class="err" id="sync-err"></div>
-        <div class="row" style="align-items:flex-end;">
-          <div>
-            <label for="new-char-name">캐릭터명 추가</label>
-            <input type="text" id="new-char-name" placeholder="예: 아이젠하르트">
-          </div>
-          <button type="button" class="primary" id="add-char-btn" style="height:38px;">등록</button>
-        </div>
-        <div class="err" id="char-err"></div>
-        <div id="registered-list" style="display:flex;flex-direction:column;gap:6px;"></div>
       </div>
     </details>
   </div>
