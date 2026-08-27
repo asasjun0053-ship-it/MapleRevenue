@@ -1,0 +1,1209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>메이플가계부 — 내 메이플 수익 기록장</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#15151a;
+    --surface:#1e1e24;
+    --surface-2:#262630;
+    --border:#33333d;
+    --border-soft:#2a2a33;
+    --orange:#ff7a3d;
+    --orange-dim:#a8502a;
+    --gold:#f5b942;
+    --text:#f1ece1;
+    --text-dim:#a49d8c;
+    --text-faint:#6f6a5f;
+    --green:#6fcf97;
+    --green-dim:#split;
+    --red:#eb6a6a;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 500px at 15% -10%, rgba(255,122,61,0.10), transparent 60%),
+      radial-gradient(900px 400px at 100% 0%, rgba(245,185,66,0.06), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Noto Sans KR', sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:880px;margin:0 auto;padding:32px 20px 80px;}
+
+  /* ---------- Header ---------- */
+  .top{display:flex;align-items:center;gap:14px;margin-bottom:6px;}
+  .leaf{
+    width:40px;height:40px;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(160deg, var(--orange), #d94f1e);
+    border-radius:12px;
+    box-shadow:0 4px 14px rgba(255,122,61,0.25);
+  }
+  .leaf svg{width:22px;height:22px;}
+  h1{
+    font-family:'Jua', sans-serif;
+    font-size:26px;
+    font-weight:400;
+    letter-spacing:0.5px;
+    margin:0;
+    color:var(--text);
+  }
+  .sub{color:var(--text-dim);font-size:13.5px;margin:6px 0 28px 54px;}
+
+  /* ---------- Summary cards ---------- */
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:28px;}
+  .card{
+    background:var(--surface);
+    border:1px solid var(--border-soft);
+    border-radius:var(--radius);
+    padding:18px 18px 16px;
+    position:relative;
+    overflow:hidden;
+  }
+  .card::before{
+    content:"";position:absolute;top:0;left:0;width:3px;height:100%;
+    background:var(--orange);opacity:0.7;
+  }
+  .card .label{font-size:12.5px;color:var(--text-dim);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+  .card .amount{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-0.3px;}
+  .card .amount.pos{color:var(--green);}
+  .card .amount.neg{color:var(--red);}
+  .card .diff{font-size:11.5px;color:var(--text-faint);margin-top:5px;}
+
+  /* ---------- Section shell ---------- */
+  .section{
+    background:var(--surface);
+    border:1px solid var(--border-soft);
+    border-radius:var(--radius);
+    padding:22px;
+    margin-bottom:20px;
+  }
+  .section h2{
+    font-size:15px;font-weight:700;margin:0 0 16px;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .section h2 .tag{font-size:11.5px;color:var(--text-faint);font-weight:400;}
+
+  /* ---------- Form ---------- */
+  form{display:flex;flex-direction:column;gap:12px;}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+  label{font-size:12px;color:var(--text-dim);margin-bottom:6px;display:block;}
+  input[type=text], input[type=number], input[type=date]{
+    width:100%;
+    background:var(--surface-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    border-radius:9px;
+    padding:10px 12px;
+    font-size:14px;
+    font-family:inherit;
+  }
+  input:focus-visible, button:focus-visible, select:focus-visible{
+    outline:2px solid var(--gold); outline-offset:1px;
+  }
+  .type-toggle{display:flex;gap:8px;}
+  .type-btn{
+    flex:1;padding:10px 12px;border-radius:9px;border:1px solid var(--border);
+    background:var(--surface-2);color:var(--text-dim);font-size:13.5px;cursor:pointer;
+    font-family:inherit;font-weight:500;transition:background .15s, color .15s, border-color .15s;
+  }
+  .type-btn.active[data-type="income"]{background:rgba(111,207,151,0.14);border-color:var(--green);color:var(--green);}
+  .type-btn.active[data-type="expense"]{background:rgba(235,106,106,0.14);border-color:var(--red);color:var(--red);}
+  .mode-btn.active{background:rgba(255,122,61,0.14);border-color:var(--orange);color:var(--orange);}
+  .qty-stepper{display:flex;align-items:stretch;gap:0;}
+  .qty-stepper input{
+    text-align:center;border-radius:0;border-left:none;border-right:none;
+    -moz-appearance:textfield;
+  }
+  .qty-stepper input::-webkit-outer-spin-button,
+  .qty-stepper input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  .qty-btn{
+    width:40px;flex:none;border:1px solid var(--border);background:var(--surface-2);
+    color:var(--text);font-size:17px;cursor:pointer;font-family:inherit;
+  }
+  .qty-btn:first-child{border-radius:9px 0 0 9px;}
+  .qty-btn:last-child{border-radius:0 9px 9px 0;}
+  .qty-btn:hover{background:var(--orange-dim);}
+
+  /* ---------- Fixed item rows ---------- */
+  #items-list{display:flex;flex-direction:column;}
+  .item-row{
+    display:grid;grid-template-columns:1fr 100px 150px 150px;
+    gap:10px;align-items:start;padding:12px 0;border-bottom:1px solid var(--border-soft);
+  }
+  .item-row .item-name{padding-top:8px;}
+  .item-row .qty-stepper, .item-row .price-stepper{margin-top:0;}
+  .item-row:last-child{border-bottom:none;}
+  .item-name{font-size:13.5px;color:var(--text);font-weight:500;}
+  .item-row .qty-stepper input{padding:8px 4px;font-size:13px;}
+  .item-row .qty-btn{width:30px;font-size:15px;}
+  .price-stepper input{font-size:12px;}
+  .item-price{width:100%;}
+  .item-right{display:flex;align-items:flex-start;gap:6px;justify-content:flex-end;padding-top:2px;}
+  .item-type-btn{
+    font-size:10.5px;padding:2px 7px;border-radius:999px;cursor:pointer;font-family:inherit;
+    background:var(--surface);white-space:nowrap;
+  }
+  .item-type-btn[data-type="income"]{color:var(--green);border:1px solid var(--green);}
+  .item-type-btn[data-type="expense"]{color:var(--red);border:1px solid var(--red);}
+  .item-subtotal{font-size:12.5px;font-weight:700;text-align:right;white-space:nowrap;}
+  .item-subtotal.income{color:var(--green);}
+  .item-subtotal.expense{color:var(--red);}
+  .fee-note{display:block;font-size:10px;font-weight:400;color:var(--text-faint);text-align:right;}
+  .items-total{
+    margin-top:12px;padding-top:12px;border-top:1px solid var(--border);
+    font-size:15px;font-weight:700;color:var(--text);text-align:right;
+  }
+  @media (max-width:560px){
+    .item-row{grid-template-columns:1fr;grid-template-rows:auto auto auto;row-gap:8px;}
+    .item-row .qty-stepper{grid-column:1/2;}
+    .item-row .price-stepper{grid-column:1/2;}
+    .item-right{grid-column:1/2;justify-content:space-between;}
+  }
+  .hint{font-size:11.5px;color:var(--text-faint);margin-top:-4px;}
+  .submit-row{display:flex;align-items:center;gap:12px;margin-top:4px;}
+  button.primary{
+    background:linear-gradient(160deg, var(--orange), #d94f1e);
+    color:#241000;border:none;border-radius:9px;
+    padding:11px 22px;font-size:14px;font-weight:700;cursor:pointer;
+    font-family:inherit;
+    box-shadow:0 3px 10px rgba(255,122,61,0.25);
+  }
+  button.primary:active{transform:translateY(1px);}
+  .coin{
+    width:20px;height:20px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, var(--gold), #a9762a);
+    display:inline-block;
+  }
+  .coin-anim{animation:drop .55s ease-out;}
+  @keyframes drop{
+    0%{transform:translateY(-14px) scale(0.6);opacity:0;}
+    60%{transform:translateY(2px) scale(1.05);opacity:1;}
+    100%{transform:translateY(0) scale(1);}
+  }
+  @media (prefers-reduced-motion: reduce){ .coin-anim{animation:none;} }
+
+  /* ---------- Chart controls ---------- */
+  .range-toggle{display:flex;gap:6px;background:var(--surface-2);padding:3px;border-radius:9px;}
+  .range-btn{
+    border:none;background:transparent;color:var(--text-dim);
+    padding:6px 12px;border-radius:7px;font-size:12.5px;cursor:pointer;font-family:inherit;font-weight:500;
+  }
+  .range-btn.active{background:var(--orange);color:#241000;}
+  .chart-box{height:220px;position:relative;}
+
+  /* ---------- Entries list ---------- */
+  .filter-row{display:flex;gap:8px;margin-bottom:14px;}
+  select{
+    background:var(--surface-2);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;
+  }
+  .entry{
+    display:flex;align-items:center;gap:12px;
+    padding:12px 4px;border-bottom:1px solid var(--border-soft);
+  }
+  .entry:last-child{border-bottom:none;}
+  .entry .dot{width:8px;height:8px;border-radius:50%;flex:none;}
+  .entry .dot.income{background:var(--green);}
+  .entry .dot.expense{background:var(--red);}
+  .entry .info{flex:1;min-width:0;}
+  .entry .date{font-size:11.5px;color:var(--text-faint);}
+  .entry .char{font-size:13.5px;color:var(--text-dim);margin-left:6px;}
+  .entry .memo{font-size:12.5px;color:var(--text-faint);margin-top:2px;}
+  .entry .amt{font-size:14.5px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .entry .amt.income{color:var(--green);}
+  .entry .amt.expense{color:var(--red);}
+  .del{
+    background:none;border:none;color:var(--text-faint);cursor:pointer;
+    font-size:16px;padding:4px 6px;border-radius:6px;line-height:1;
+  }
+  .del:hover{color:var(--red);background:rgba(235,106,106,0.1);}
+
+  .empty{
+    text-align:center;padding:36px 10px;color:var(--text-dim);
+  }
+  .empty .big{font-family:'Jua',sans-serif;font-size:16px;color:var(--text);margin-bottom:6px;}
+  .empty .small{font-size:12.5px;color:var(--text-faint);}
+  .empty.small-empty{padding:16px 10px;font-size:12.5px;color:var(--text-faint);}
+
+  /* ---------- Character cards ---------- */
+  .char-cards{display:flex;flex-wrap:wrap;gap:18px;}
+  .char-card{
+    flex:1;min-width:320px;
+    background:var(--surface-2);border:1px solid var(--border);
+    border-radius:16px;padding:32px 36px;
+    display:flex;align-items:center;gap:24px;
+  }
+  .char-avatar{width:300px;height:300px;border-radius:20px;background:var(--surface);flex:none;object-fit:cover;border:1px solid var(--border);}
+  .char-info{min-width:0;flex:1;}
+  .char-name{font-size:30px;font-weight:700;color:var(--text);}
+  .char-sub{font-size:18px;color:var(--text-dim);margin-top:6px;}
+  .char-cp{font-size:24px;color:var(--gold);font-weight:700;margin-top:12px;font-variant-numeric:tabular-nums;}
+  .char-remove{background:none;border:none;color:var(--text-faint);cursor:pointer;font-size:14px;padding:2px 6px;}
+  .char-remove:hover{color:var(--red);}
+  .reg-row{display:flex;align-items:center;justify-content:space-between;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;}
+  .base-price-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;}
+  .base-price-row .bp-name{font-size:13.5px;color:var(--text);}
+  .base-price-row input{width:150px;text-align:right;}
+
+  .loading{padding:30px;text-align:center;color:var(--text-faint);font-size:13px;}
+  .err{color:var(--red);font-size:12.5px;margin-top:6px;display:none;}
+
+  @media (max-width:560px){
+    .cards{grid-template-columns:1fr;}
+    .row, .row3{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div class="leaf">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 2C9 6 4 8 4 13a8 8 0 0 0 7 8v-4l-3-3 3 1V9l-2-3 3 1V2z" fill="#1e0d02" opacity="0.9"/><path d="M12 2C15 6 20 8 20 13a8 8 0 0 1-7 8v-4l3-3-3 1V9l2-3-3 1V2z" fill="#1e0d02" opacity="0.6"/></svg>
+    </div>
+    <h1>메이플가계부</h1>
+  </div>
+  <p class="sub">내가 번 메소를 직접 기록하고, 일간·주간·월간으로 확인해요</p>
+  <div id="storage-warning" style="display:none;background:rgba(235,106,106,0.12);border:1px solid var(--red);color:var(--red);font-size:12.5px;padding:10px 14px;border-radius:9px;margin-bottom:20px;"></div>
+
+  <div class="section" id="char-section">
+    <h2>내 캐릭터 <span class="tag" id="char-updated"></span></h2>
+    <div id="char-cards" class="char-cards"><div class="empty small-empty">아래 설정에서 캐릭터를 한 번 등록해두면, 접속할 때마다 전투력이 자동으로 떠요</div></div>
+
+    <details id="char-settings" style="margin-top:14px;">
+      <summary style="cursor:pointer;font-size:12.5px;color:var(--text-dim);">캐릭터 / 서버 설정</summary>
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;">
+        <div>
+          <label for="server-url">프록시 서버 주소 <span style="color:var(--text-faint)">(직접 배포한 주소)</span></label>
+          <input type="text" id="server-url" placeholder="https://your-app.onrender.com">
+        </div>
+        <div>
+          <label for="sync-code">동기화 코드 <span style="color:var(--text-faint)">(다른 PC에서도 같은 코드를 입력하면 같은 기록이 보여요)</span></label>
+          <input type="text" id="sync-code" placeholder="예: 아이젠하르트sync2024">
+        </div>
+        <div class="err" id="sync-err"></div>
+        <div class="row" style="align-items:flex-end;">
+          <div>
+            <label for="new-char-name">캐릭터명 추가</label>
+            <input type="text" id="new-char-name" placeholder="예: 아이젠하르트">
+          </div>
+          <button type="button" class="primary" id="add-char-btn" style="height:38px;">등록</button>
+        </div>
+        <div class="err" id="char-err"></div>
+        <div id="registered-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+      </div>
+    </details>
+  </div>
+
+  <div class="cards" id="cards">
+    <div class="card"><div class="label">오늘</div><div class="amount" id="c-today">—</div><div class="diff" id="d-today"></div></div>
+    <div class="card"><div class="label">이번 주</div><div class="amount" id="c-week">—</div><div class="diff" id="d-week"></div></div>
+    <div class="card"><div class="label">이번 달</div><div class="amount" id="c-month">—</div><div class="diff" id="d-month"></div></div>
+  </div>
+
+  <div class="section">
+    <h2>기록 추가</h2>
+    <form id="entry-form">
+      <div class="row">
+        <div>
+          <label for="f-date">날짜</label>
+          <input type="date" id="f-date" required>
+        </div>
+        <div>
+          <label for="f-char">캐릭터 <span style="color:var(--text-faint)">(선택)</span></label>
+          <select id="f-char"><option value="">지정 안 함</option></select>
+        </div>
+      </div>
+
+      <div>
+        <label>구분</label>
+        <div class="type-toggle">
+          <button type="button" class="type-btn active" data-type="income">수입</button>
+          <button type="button" class="type-btn" data-type="expense">지출</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div>
+          <label for="f-amount">금액 (메소)</label>
+          <input type="text" lang="ko" autocomplete="off" id="f-amount" placeholder="예: 150000000 또는 1.5억" required>
+        </div>
+        <div>
+          <label for="f-memo">메모 <span style="color:var(--text-faint)">(선택)</span></label>
+          <input type="text" id="f-memo" placeholder="예: 세렌 하드 클리어">
+        </div>
+      </div>
+
+      <div>
+        <label>입력 방식</label>
+        <div class="type-toggle" id="mode-toggle">
+          <button type="button" class="type-btn mode-btn active" data-mode="direct">직접 금액 입력</button>
+          <button type="button" class="type-btn mode-btn" data-mode="calc">개수 × 단가</button>
+          <button type="button" class="type-btn mode-btn" data-mode="items">아이템 기록</button>
+        </div>
+      </div>
+
+      <div id="calc-section" style="display:none;">
+        <div class="row">
+          <div>
+            <label for="f-qty">개수</label>
+            <div class="qty-stepper">
+              <button type="button" class="qty-btn" id="qty-minus">−</button>
+              <input type="number" id="f-qty" min="1" step="1" value="1">
+              <button type="button" class="qty-btn" id="qty-plus">+</button>
+            </div>
+          </div>
+          <div>
+            <label for="f-unit-price">개당 가격 (메소)</label>
+            <input type="text" lang="ko" autocomplete="off" id="f-unit-price" placeholder="예: 500000 또는 50만">
+          </div>
+        </div>
+      </div>
+
+      <div id="items-section" style="display:none;">
+        <div id="items-list"></div>
+        <div class="items-total" id="items-total">총 합계: 0 메소</div>
+      </div>
+
+      <div class="hint" id="f-preview">0 메소</div>
+
+      <div class="submit-row">
+        <button type="submit" class="primary">기록 저장</button>
+        <span class="coin" id="coin-fx" style="display:none;"></span>
+      </div>
+      <div class="err" id="form-err"></div>
+    </form>
+  </div>
+
+  <div class="section">
+    <h2>수익 추이 <div class="range-toggle" id="range-toggle">
+      <button class="range-btn active" data-range="daily">일간</button>
+      <button class="range-btn" data-range="weekly">주간</button>
+      <button class="range-btn" data-range="monthly">월간</button>
+    </div></h2>
+    <div class="chart-box"><canvas id="chart"></canvas></div>
+  </div>
+
+  <div class="section">
+    <h2>최근 기록 <span class="tag" id="entry-count"></span></h2>
+    <div class="filter-row">
+      <select id="filter-char"><option value="">전체 캐릭터</option></select>
+      <select id="filter-type">
+        <option value="">전체</option>
+        <option value="income">수입만</option>
+        <option value="expense">지출만</option>
+      </select>
+    </div>
+    <div id="entry-list"><div class="loading">기록을 불러오는 중…</div></div>
+  </div>
+  <div class="section">
+    <h2>아이템 기본 가격 설정</h2>
+    <p class="hint" style="margin-bottom:14px;">여기서 바꾼 기본 가격은 다음에 새로 입력하는 기록부터 적용돼요.</p>
+    <div id="base-price-list" style="display:flex;flex-direction:column;gap:10px;"></div>
+  </div>
+
+</div>
+
+<script>
+const STORAGE_KEY = 'mesolog-entries';
+const SETTINGS_CHARS_KEY = 'mesolog-characters';
+const SETTINGS_SERVER_KEY = 'mesolog-server-url';
+const SETTINGS_SYNC_CODE_KEY = 'mesolog-sync-code';
+let entries = [];
+let registeredChars = [];
+let serverUrl = '';
+let syncCode = '';
+let currentType = 'income';
+let currentRange = 'daily';
+let chart = null;
+
+function loadSettings(){
+  try{
+    registeredChars = JSON.parse(localStorage.getItem(SETTINGS_CHARS_KEY) || '[]');
+  }catch(e){ registeredChars = []; }
+  serverUrl = (localStorage.getItem(SETTINGS_SERVER_KEY) || '').trim();
+  syncCode = (localStorage.getItem(SETTINGS_SYNC_CODE_KEY) || '').trim();
+  document.getElementById('server-url').value = serverUrl;
+  document.getElementById('sync-code').value = syncCode;
+}
+
+function saveSettings(){
+  localStorage.setItem(SETTINGS_CHARS_KEY, JSON.stringify(registeredChars));
+  localStorage.setItem(SETTINGS_SERVER_KEY, serverUrl);
+  localStorage.setItem(SETTINGS_SYNC_CODE_KEY, syncCode);
+}
+
+function populateCharSelect(){
+  const sel = document.getElementById('f-char');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">지정 안 함</option>' +
+    registeredChars.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  sel.value = registeredChars.includes(current) ? current : (registeredChars[0] || '');
+}
+
+function renderRegisteredList(){
+  const box = document.getElementById('registered-list');
+  if (!registeredChars.length){
+    box.innerHTML = '';
+    return;
+  }
+  box.innerHTML = registeredChars.map(n => `
+    <div class="reg-row">
+      <span>${escapeHtml(n)}</span>
+      <button type="button" class="char-remove" data-name="${escapeHtml(n)}" aria-label="캐릭터 삭제">✕ 삭제</button>
+    </div>
+  `).join('');
+  box.querySelectorAll('.char-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      registeredChars = registeredChars.filter(n => n !== btn.dataset.name);
+      saveSettings();
+      renderRegisteredList();
+      populateCharSelect();
+      renderCharCards();
+    });
+  });
+}
+
+async function fetchCharacterStats(name){
+  if (!serverUrl){
+    return { error: '서버 주소가 설정되지 않았어요. 설정에서 프록시 서버 주소를 입력해주세요.' };
+  }
+  try{
+    const res = await fetch(`${serverUrl.replace(/\/$/,'')}/api/character?name=${encodeURIComponent(name)}`);
+    const data = await res.json();
+    if (!res.ok) return { error: data.error || '조회에 실패했어요.' };
+    return { data };
+  }catch(err){
+    return { error: '서버에 연결하지 못했어요. 서버 주소나 배포 상태를 확인해주세요.' };
+  }
+}
+
+async function renderCharCards(){
+  const box = document.getElementById('char-cards');
+  const updatedTag = document.getElementById('char-updated');
+  if (!registeredChars.length){
+    box.innerHTML = '<div class="empty small-empty">아래 설정에서 캐릭터를 한 번 등록해두면, 접속할 때마다 전투력이 자동으로 떠요</div>';
+    updatedTag.textContent = '';
+    return;
+  }
+  box.innerHTML = registeredChars.map(n => `
+    <div class="char-card" id="char-card-${cssId(n)}">
+      <div class="char-info"><div class="char-name">${escapeHtml(n)}</div><div class="char-sub">불러오는 중…</div></div>
+    </div>
+  `).join('');
+
+  const results = await Promise.all(registeredChars.map(n => fetchCharacterStats(n)));
+  results.forEach((r, i) => {
+    const name = registeredChars[i];
+    const el = document.getElementById(`char-card-${cssId(name)}`);
+    if (!el) return;
+    if (r.error){
+      el.innerHTML = `<div class="char-info"><div class="char-name">${escapeHtml(name)}</div><div class="char-sub" style="color:var(--red)">${escapeHtml(r.error)}</div></div>`;
+      return;
+    }
+    const c = r.data;
+    el.innerHTML = `
+      ${c.imageUrl ? `<img class="char-avatar" src="${c.imageUrl}" alt="">` : '<div class="char-avatar"></div>'}
+      <div class="char-info">
+        <div class="char-name">${escapeHtml(c.name)}</div>
+        <div class="char-sub">Lv.${c.level} · ${escapeHtml(c.job)}${c.world ? ' · ' + escapeHtml(c.world) : ''}</div>
+        ${c.combatPower ? `<div class="char-cp">전투력 ${formatCompact(c.combatPower)}</div>` : ''}
+      </div>
+    `;
+  });
+  updatedTag.textContent = '방금 갱신';
+}
+
+function cssId(s){ return s.replace(/[^a-zA-Z0-9가-힣_-]/g, '_'); }
+
+function formatCompact(n){
+  if (n >= 100000000) return (n/100000000).toFixed(1) + '억';
+  if (n >= 10000) return Math.round(n/10000).toLocaleString() + '만';
+  return n.toLocaleString();
+}
+
+function todayLocalISO(d = new Date()){
+  const tz = d.getTimezoneOffset() * 60000;
+  return new Date(d - tz).toISOString().slice(0,10);
+}
+
+function formatMeso(n){
+  const sign = n < 0 ? '-' : '';
+  n = Math.abs(Math.round(n));
+  const eok = Math.floor(n / 100000000);
+  const man = Math.floor((n % 100000000) / 10000);
+  const rest = n % 10000;
+  let parts = [];
+  if (eok > 0) parts.push(eok.toLocaleString() + '억');
+  if (man > 0) parts.push(man.toLocaleString() + '만');
+  if (eok === 0 && man === 0) parts.push(rest.toLocaleString());
+  return sign + (parts.length ? parts.join(' ') : '0') + ' 메소';
+}
+
+function startOfWeek(date){
+  const d = new Date(date);
+  const day = (d.getDay() + 6) % 7;
+  d.setDate(d.getDate() - day);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+function netOf(list){
+  return list.reduce((sum, e) => sum + (e.type === 'income' ? e.amount : -e.amount), 0);
+}
+
+let storageMode = 'memory'; // 'cloud' | 'local' | 'memory'
+
+function showStorageWarning(msg){
+  const bar = document.getElementById('storage-warning');
+  bar.textContent = msg;
+  bar.style.display = 'block';
+}
+
+async function loadEntries(){
+  // 0순위: 동기화 코드가 설정되어 있으면 서버(클라우드 DB)에서 불러오기 — 다른 PC와 공유됨
+  if (syncCode && serverUrl){
+    try{
+      const res = await fetch(`${serverUrl.replace(/\/$/,'')}/api/entries?code=${encodeURIComponent(syncCode)}`);
+      const data = await res.json();
+      if (res.ok){
+        entries = data.entries || [];
+        storageMode = 'sync';
+        return;
+      }
+      showStorageWarning(data.error || '동기화 서버에서 기록을 불러오지 못했어요.');
+    }catch(err){
+      showStorageWarning('동기화 서버에 연결하지 못해서, 이 기기에 저장된 기록으로 대신 보여드려요.');
+    }
+  }
+  // 1순위: 채팅 안에서 볼 때 쓰는 클라우드 저장소
+  if (typeof window.storage !== 'undefined'){
+    try{
+      const res = await window.storage.get(STORAGE_KEY, false);
+      entries = res ? JSON.parse(res.value) : [];
+      storageMode = 'cloud';
+      return;
+    }catch(err){
+      if (!/not found|no such|404/i.test(String(err && err.message))){
+        // 클라우드 저장소 접근은 되는데 값이 없는 것 외의 오류 → 로컬로 전환
+      }
+    }
+  }
+  // 2순위: 이 파일을 연 브라우저 자체에 저장 (다운로드해서 여는 경우 여기로 옴)
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    entries = raw ? JSON.parse(raw) : [];
+    storageMode = 'local';
+  }catch(err){
+    entries = [];
+    storageMode = 'memory';
+    showStorageWarning('이 브라우저에서는 저장 기능을 쓸 수 없어서, 창을 닫으면 기록이 사라져요.');
+  }
+}
+
+async function saveEntries(){
+  if (syncCode && serverUrl){
+    try{
+      const res = await fetch(`${serverUrl.replace(/\/$/,'')}/api/entries`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: syncCode, entries }),
+      });
+      const data = await res.json();
+      if (res.ok){
+        storageMode = 'sync';
+        return true;
+      }
+      showStorageWarning(data.error || '동기화 서버에 저장하지 못했어요. 이 기기에만 임시로 저장돼요.');
+    }catch(err){
+      showStorageWarning('동기화 서버에 연결하지 못해서, 이 기기에만 임시로 저장돼요.');
+    }
+    // 동기화 실패해도 최소한 이 기기에는 남기기
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }catch(e){}
+    return true;
+  }
+  if (storageMode === 'cloud'){
+    try{
+      await window.storage.set(STORAGE_KEY, JSON.stringify(entries), false);
+      return true;
+    }catch(err){
+      storageMode = 'local'; // 실패하면 로컬 저장으로 전환해서라도 남김
+    }
+  }
+  if (storageMode === 'local'){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+      return true;
+    }catch(err){
+      storageMode = 'memory';
+      showStorageWarning('저장에 실패했어요. 이번 화면을 벗어나면 기록이 사라질 수 있어요.');
+      return true;
+    }
+  }
+  showStorageWarning('저장 기능을 쓸 수 없어서, 이번 화면 안에서만 기록이 보여요.');
+  return true;
+}
+
+function renderSummary(){
+  const today = todayLocalISO();
+  const weekStartStr = todayLocalISO(startOfWeek(new Date()));
+  const monthStr = today.slice(0,7);
+
+  const todayList = entries.filter(e => e.date === today);
+  const weekList = entries.filter(e => e.date >= weekStartStr && e.date <= today);
+  const monthList = entries.filter(e => e.date.slice(0,7) === monthStr);
+
+  setCard('c-today', netOf(todayList));
+  setCard('c-week', netOf(weekList));
+  setCard('c-month', netOf(monthList));
+}
+
+function setCard(id, val){
+  const el = document.getElementById(id);
+  el.textContent = formatMeso(val);
+  el.classList.remove('pos','neg');
+  el.classList.add(val >= 0 ? 'pos' : 'neg');
+}
+
+function renderFilters(){
+  const sel = document.getElementById('filter-char');
+  const current = sel.value;
+  const names = [...new Set(entries.map(e => e.character).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">전체 캐릭터</option>' + names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+  sel.value = names.includes(current) ? current : '';
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderList(){
+  const charFilter = document.getElementById('filter-char').value;
+  const typeFilter = document.getElementById('filter-type').value;
+
+  let list = entries.slice().sort((a,b) => b.date.localeCompare(a.date) || b.createdAt - a.createdAt);
+  if (charFilter) list = list.filter(e => e.character === charFilter);
+  if (typeFilter) list = list.filter(e => e.type === typeFilter);
+
+  document.getElementById('entry-count').textContent = list.length ? `${list.length}건` : '';
+
+  const box = document.getElementById('entry-list');
+  if (!list.length){
+    box.innerHTML = `<div class="empty"><div class="big">아직 기록이 없어요</div><div class="small">오늘 번 메소를 기록해서 첫 데이터를 남겨보세요</div></div>`;
+    return;
+  }
+
+  box.innerHTML = list.slice(0, 100).map(e => `
+    <div class="entry">
+      <div class="dot ${e.type}"></div>
+      <div class="info">
+        <span class="date">${e.date}</span>${e.character ? `<span class="char">${escapeHtml(e.character)}</span>` : ''}
+        ${e.memo ? `<div class="memo">${escapeHtml(e.memo)}</div>` : ''}
+      </div>
+      <div class="amt ${e.type}">${e.type === 'income' ? '+' : '-'}${formatMeso(e.amount)}</div>
+      <button class="del" data-id="${e.id}" aria-label="기록 삭제">✕</button>
+    </div>
+  `).join('');
+
+  box.querySelectorAll('.del').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      entries = entries.filter(e => e.id !== btn.dataset.id);
+      await saveEntries();
+      renderAll();
+    });
+  });
+}
+
+function buildSeries(range){
+  const today = new Date();
+  let labels = [], values = [];
+
+  if (range === 'daily'){
+    for (let i = 13; i >= 0; i--){
+      const d = new Date(today); d.setDate(d.getDate() - i);
+      const key = todayLocalISO(d);
+      labels.push(key.slice(5));
+      values.push(netOf(entries.filter(e => e.date === key)));
+    }
+  } else if (range === 'weekly'){
+    for (let i = 7; i >= 0; i--){
+      const start = new Date(startOfWeek(today)); start.setDate(start.getDate() - i*7);
+      const end = new Date(start); end.setDate(end.getDate() + 6);
+      const s = todayLocalISO(start), en = todayLocalISO(end);
+      labels.push(`${s.slice(5)}~${en.slice(5)}`);
+      values.push(netOf(entries.filter(e => e.date >= s && e.date <= en)));
+    }
+  } else {
+    for (let i = 5; i >= 0; i--){
+      const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+      const key = d.toISOString().slice(0,7);
+      labels.push(key);
+      values.push(netOf(entries.filter(e => e.date.slice(0,7) === key)));
+    }
+  }
+  return { labels, values };
+}
+
+function renderChart(){
+  const { labels, values } = buildSeries(currentRange);
+  const colors = values.map(v => v >= 0 ? '#6fcf97' : '#eb6a6a');
+  const ctx = document.getElementById('chart');
+
+  if (chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 4, maxBarThickness: 34 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx) => formatMeso(ctx.raw) } }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#a49d8c', font: { size: 11 } } },
+        y: {
+          grid: { color: '#2a2a33' },
+          ticks: { color: '#a49d8c', font: { size: 10 }, callback: (v) => formatMeso(v) }
+        }
+      }
+    }
+  });
+}
+
+function renderAll(){
+  renderSummary();
+  renderFilters();
+  renderList();
+  renderChart();
+}
+
+document.querySelectorAll('.type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentType = btn.dataset.type;
+    if (entryMode === 'calc') updateCalcPreview();
+  });
+});
+
+document.querySelectorAll('.range-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentRange = btn.dataset.range;
+    renderChart();
+  });
+});
+
+document.getElementById('f-amount').addEventListener('input', (e) => {
+  const v = parseKoreanAmount(e.target.value);
+  document.getElementById('f-preview').textContent = formatMeso(v);
+});
+attachKoreanAmountInput(document.getElementById('f-amount'), (v) => {
+  document.getElementById('f-preview').textContent = formatMeso(v);
+});
+
+const FIXED_ITEMS = [
+  { id: 'solerda', name: '솔 에르다 조각' },
+  { id: 'topcrystal', name: '최상급 아이템 결정' },
+  { id: 'juniperseed', name: '쥬니퍼베리 씨앗' },
+  { id: 'dusk', name: '영롱한 황혼의 정수' },
+];
+
+const DEFAULT_ITEM_PRICES = {
+  solerda: 6850000,
+  topcrystal: 380000,
+  juniperseed: 800000,
+  dusk: 14000000,
+};
+const ITEM_PRICES_KEY = 'mesolog-item-base-prices';
+let itemBasePrices = { ...DEFAULT_ITEM_PRICES };
+
+function loadItemBasePrices(){
+  try{
+    const saved = JSON.parse(localStorage.getItem(ITEM_PRICES_KEY) || '{}');
+    itemBasePrices = { ...DEFAULT_ITEM_PRICES, ...saved };
+  }catch(e){
+    itemBasePrices = { ...DEFAULT_ITEM_PRICES };
+  }
+}
+function saveItemBasePrices(){
+  localStorage.setItem(ITEM_PRICES_KEY, JSON.stringify(itemBasePrices));
+}
+function formatWon(n){
+  return Math.round(n).toLocaleString() + '원';
+}
+
+// "3천만원", "14만원", "685만", "1.4억", "140000" 등 다양한 표기를 숫자로 인식
+// (천/백/십은 만·억 앞에서 배수로 쓰이는 경우가 많아 "3천만" = 3 × 1,000 × 10,000 처럼 계산해야 함)
+function koreanSubGroupToNumber(str){
+  if (!str) return 0;
+  let s = str;
+  let total = 0;
+  for (const [ch, val] of [['천', 1000], ['백', 100], ['십', 10]]){
+    const idx = s.indexOf(ch);
+    if (idx !== -1){
+      const numPart = s.slice(0, idx);
+      const n = numPart === '' ? 1 : parseFloat(numPart);
+      if (!isNaN(n)) total += n * val;
+      s = s.slice(idx + 1);
+    }
+  }
+  if (s){
+    const n = parseFloat(s);
+    if (!isNaN(n)) total += n;
+  }
+  return total;
+}
+
+function parseKoreanAmount(str){
+  if (str == null) return 0;
+  str = String(str).trim().replace(/,/g, '').replace(/원/g, '').replace(/\s+/g, '');
+  if (!str) return 0;
+  let total = 0;
+  let remaining = str;
+  const bigUnits = [['억', 100000000], ['만', 10000]];
+  for (const [ch, val] of bigUnits){
+    const idx = remaining.indexOf(ch);
+    if (idx !== -1){
+      const numPart = remaining.slice(0, idx);
+      const n = numPart === '' ? 1 : koreanSubGroupToNumber(numPart);
+      total += n * val;
+      remaining = remaining.slice(idx + 1);
+    }
+  }
+  if (remaining){
+    total += koreanSubGroupToNumber(remaining);
+  }
+  return Math.round(total);
+}
+
+// 입력칸에 "14만원" 같은 표기를 쓰고 벗어나면 실제 숫자로 정리해서 보여줌
+function attachKoreanAmountInput(el, onChange){
+  el.addEventListener('focus', () => {
+    const v = parseKoreanAmount(el.value);
+    el.value = v ? String(v) : '';
+  });
+  el.addEventListener('blur', () => {
+    const v = parseKoreanAmount(el.value);
+    el.value = v ? v.toLocaleString() : '';
+    if (onChange) onChange(v);
+  });
+}
+
+const itemTypes = {}; // id -> 'income' | 'expense'
+FIXED_ITEMS.forEach(it => { itemTypes[it.id] = 'income'; });
+
+function itemRowHTML(it){
+  const type = itemTypes[it.id];
+  return `
+    <div class="item-row">
+      <div class="item-name">${it.name}</div>
+      <div class="qty-stepper">
+        <button type="button" class="qty-btn" data-act="minus" data-id="${it.id}">−</button>
+        <input type="number" class="item-qty" id="item-qty-${it.id}" min="0" step="1" value="0">
+        <button type="button" class="qty-btn" data-act="plus" data-id="${it.id}">+</button>
+      </div>
+      <div class="qty-stepper price-stepper">
+        <button type="button" class="qty-btn price-btn" data-act="minus" data-id="${it.id}">−</button>
+        <input type="text" lang="ko" autocomplete="off" class="item-price" id="item-price-${it.id}" value="${itemBasePrices[it.id].toLocaleString()}">
+        <button type="button" class="qty-btn price-btn" data-act="plus" data-id="${it.id}">+</button>
+      </div>
+      <div class="item-right">
+        <button type="button" class="item-type-btn" data-type="${type}" data-id="${it.id}">${type === 'income' ? '수입' : '지출'}</button>
+        <div class="item-subtotal ${type}" id="item-subtotal-${it.id}">0</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderItemsSection(){
+  document.getElementById('items-list').innerHTML = FIXED_ITEMS.map(itemRowHTML).join('');
+  document.querySelectorAll('#items-list .qty-btn[data-act]:not(.price-btn)').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input = document.getElementById(`item-qty-${btn.dataset.id}`);
+      const cur = Math.max(0, Number(input.value || 0));
+      input.value = btn.dataset.act === 'plus' ? cur + 1 : Math.max(0, cur - 1);
+      updateItemsPreview();
+    });
+  });
+  document.querySelectorAll('#items-list .price-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input = document.getElementById(`item-price-${btn.dataset.id}`);
+      const cur = Math.max(0, parseKoreanAmount(input.value));
+      const next = btn.dataset.act === 'plus' ? cur + 50000 : Math.max(0, cur - 50000);
+      input.value = next.toLocaleString();
+      updateItemsPreview();
+    });
+  });
+  document.querySelectorAll('#items-list .item-price').forEach(el => {
+    attachKoreanAmountInput(el, updateItemsPreview);
+  });
+  document.querySelectorAll('#items-list .item-qty, #items-list .item-price').forEach(el => {
+    el.addEventListener('input', updateItemsPreview);
+  });
+  document.querySelectorAll('#items-list .item-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      itemTypes[id] = itemTypes[id] === 'income' ? 'expense' : 'income';
+      const newType = itemTypes[id];
+      btn.dataset.type = newType;
+      btn.textContent = newType === 'income' ? '수입' : '지출';
+      const subtotalEl = document.getElementById(`item-subtotal-${id}`);
+      subtotalEl.classList.remove('income', 'expense');
+      subtotalEl.classList.add(newType);
+      updateItemsPreview();
+    });
+  });
+}
+
+const SALES_FEE_RATE = 0.03; // 아이템 판매 시 적용되는 수수료 (수입일 때만)
+
+function getItemsBreakdown(){
+  return FIXED_ITEMS.map(it => {
+    const qty = Math.max(0, Number(document.getElementById(`item-qty-${it.id}`).value || 0));
+    const price = parseKoreanAmount(document.getElementById(`item-price-${it.id}`).value);
+    const subtotal = qty * price;
+    const type = itemTypes[it.id];
+    const netAmount = type === 'income' ? Math.round(subtotal * (1 - SALES_FEE_RATE)) : subtotal;
+    return { ...it, qty, price, subtotal, type, netAmount };
+  });
+}
+
+function updateItemsPreview(){
+  const breakdown = getItemsBreakdown();
+  let net = 0;
+  breakdown.forEach(b => {
+    const el = document.getElementById(`item-subtotal-${b.id}`);
+    if (b.subtotal > 0 && b.type === 'income'){
+      el.innerHTML = `${formatWon(b.netAmount)}<span class="fee-note">수수료 3% 제외<br>원가 ${formatWon(b.subtotal)}</span>`;
+    } else {
+      el.textContent = b.subtotal > 0 ? formatWon(b.subtotal) : '0원';
+    }
+    net += b.type === 'income' ? b.netAmount : -b.subtotal;
+  });
+  const totalEl = document.getElementById('items-total');
+  totalEl.textContent = `총 합계: ${formatWon(net)}`;
+  totalEl.style.color = net >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('f-preview').textContent = formatWon(net);
+  return net;
+}
+
+let entryMode = 'direct'; // 'direct' | 'calc' | 'items'
+
+function updateCalcPreview(){
+  const qty = Math.max(1, Number(document.getElementById('f-qty').value || 1));
+  const unit = parseKoreanAmount(document.getElementById('f-unit-price').value);
+  const gross = qty * unit;
+  const net = currentType === 'income' ? Math.round(gross * (1 - SALES_FEE_RATE)) : gross;
+  const previewEl = document.getElementById('f-preview');
+  if (currentType === 'income' && gross > 0){
+    previewEl.innerHTML = `${qty.toLocaleString()}개 × ${formatMeso(unit)} = ${formatMeso(net)}<span class="fee-note">수수료 3% 제외<br>원가 ${formatMeso(gross)}</span>`;
+  } else {
+    previewEl.textContent = `${qty.toLocaleString()}개 × ${formatMeso(unit)} = ${formatMeso(gross)}`;
+  }
+  return net;
+}
+
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    entryMode = btn.dataset.mode;
+    const directField = document.getElementById('f-amount');
+    const calcSection = document.getElementById('calc-section');
+    const itemsSection = document.getElementById('items-section');
+
+    calcSection.style.display = entryMode === 'calc' ? 'block' : 'none';
+    itemsSection.style.display = entryMode === 'items' ? 'block' : 'none';
+
+    if (entryMode === 'direct'){
+      directField.setAttribute('required', 'required');
+      document.getElementById('f-preview').textContent = formatMeso(parseKoreanAmount(directField.value));
+    } else {
+      directField.removeAttribute('required');
+      if (entryMode === 'calc') updateCalcPreview();
+      if (entryMode === 'items') updateItemsPreview();
+    }
+  });
+});
+
+document.getElementById('f-qty').addEventListener('input', updateCalcPreview);
+document.getElementById('f-unit-price').addEventListener('input', updateCalcPreview);
+attachKoreanAmountInput(document.getElementById('f-unit-price'), updateCalcPreview);
+
+document.getElementById('qty-minus').addEventListener('click', () => {
+  const qtyInput = document.getElementById('f-qty');
+  qtyInput.value = Math.max(1, Number(qtyInput.value || 1) - 1);
+  updateCalcPreview();
+});
+document.getElementById('qty-plus').addEventListener('click', () => {
+  const qtyInput = document.getElementById('f-qty');
+  qtyInput.value = Number(qtyInput.value || 1) + 1;
+  updateCalcPreview();
+});
+
+document.getElementById('filter-char').addEventListener('change', renderList);
+document.getElementById('filter-type').addEventListener('change', renderList);
+
+document.getElementById('entry-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errBox = document.getElementById('form-err');
+  errBox.style.display = 'none';
+
+  const date = document.getElementById('f-date').value;
+  const character = document.getElementById('f-char').value;
+  const memo = document.getElementById('f-memo').value.trim();
+
+  let newEntries = [];
+
+  if (entryMode === 'calc'){
+    const qty = Math.max(1, Number(document.getElementById('f-qty').value || 1));
+    const unit = parseKoreanAmount(document.getElementById('f-unit-price').value);
+    const gross = qty * unit;
+    const amount = currentType === 'income' ? Math.round(gross * (1 - SALES_FEE_RATE)) : gross;
+    if (!date || !gross || gross <= 0){
+      errBox.textContent = '날짜와 0보다 큰 금액을 입력해주세요';
+      errBox.style.display = 'block';
+      return;
+    }
+    const feeSuffix = currentType === 'income' ? ' (수수료 3% 차감)' : '';
+    newEntries.push({
+      date, character, type: currentType, amount,
+      memo: (memo || `${qty.toLocaleString()}개 × ${formatMeso(unit)}`) + feeSuffix,
+    });
+  } else if (entryMode === 'items'){
+    const breakdown = getItemsBreakdown().filter(b => b.qty > 0 && b.price > 0);
+    if (!date || !breakdown.length){
+      errBox.textContent = '날짜와 최소 한 아이템의 개수·가격을 입력해주세요';
+      errBox.style.display = 'block';
+      return;
+    }
+    breakdown.forEach(b => {
+      const feeSuffix = b.type === 'income' ? ' (수수료 3% 차감)' : '';
+      newEntries.push({
+        date, character, type: b.type, amount: b.netAmount,
+        memo: (memo ? `${b.name} ${b.qty.toLocaleString()}개 - ${memo}` : `${b.name} ${b.qty.toLocaleString()}개`) + feeSuffix,
+      });
+    });
+  } else {
+    const amount = parseKoreanAmount(document.getElementById('f-amount').value);
+    if (!date || !amount || amount <= 0){
+      errBox.textContent = '날짜와 0보다 큰 금액을 입력해주세요';
+      errBox.style.display = 'block';
+      return;
+    }
+    newEntries.push({ date, character, type: currentType, amount, memo });
+  }
+
+  newEntries.forEach(ne => {
+    entries.push({
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
+      createdAt: Date.now(),
+      ...ne,
+    });
+  });
+
+  await saveEntries();
+
+  document.getElementById('f-amount').value = '';
+  document.getElementById('f-qty').value = '1';
+  document.getElementById('f-unit-price').value = '';
+  document.getElementById('f-memo').value = '';
+  document.getElementById('f-preview').textContent = '0 메소';
+  FIXED_ITEMS.forEach(it => {
+    document.getElementById(`item-qty-${it.id}`).value = '0';
+    document.getElementById(`item-price-${it.id}`).value = itemBasePrices[it.id].toLocaleString();
+  });
+  if (entryMode === 'items') updateItemsPreview();
+
+  const coin = document.getElementById('coin-fx');
+  coin.style.display = 'inline-block';
+  coin.classList.remove('coin-anim'); void coin.offsetWidth; coin.classList.add('coin-anim');
+  setTimeout(() => { coin.style.display = 'none'; }, 600);
+
+  renderAll();
+});
+
+document.getElementById('server-url').addEventListener('change', (e) => {
+  serverUrl = e.target.value.trim();
+  saveSettings();
+  renderCharCards();
+});
+
+document.getElementById('sync-code').addEventListener('change', async (e) => {
+  syncCode = e.target.value.trim();
+  saveSettings();
+  const errBox = document.getElementById('sync-err');
+  errBox.style.display = 'none';
+  if (syncCode && !serverUrl){
+    errBox.textContent = '동기화하려면 먼저 프록시 서버 주소를 입력해주세요.';
+    errBox.style.display = 'block';
+    return;
+  }
+  await loadEntries();
+  renderAll();
+});
+
+document.getElementById('add-char-btn').addEventListener('click', async () => {
+  const input = document.getElementById('new-char-name');
+  const errBox = document.getElementById('char-err');
+  errBox.style.display = 'none';
+  const name = input.value.trim();
+  if (!name) return;
+  if (registeredChars.includes(name)){
+    errBox.textContent = '이미 등록된 캐릭터예요.';
+    errBox.style.display = 'block';
+    return;
+  }
+  registeredChars.push(name);
+  saveSettings();
+  input.value = '';
+  renderRegisteredList();
+  populateCharSelect();
+  await renderCharCards();
+});
+
+function renderBasePriceSettings(){
+  const box = document.getElementById('base-price-list');
+  box.innerHTML = FIXED_ITEMS.map(it => `
+    <div class="base-price-row">
+      <span class="bp-name">${it.name}</span>
+      <input type="text" lang="ko" autocomplete="off" class="bp-input" id="bp-${it.id}" value="${itemBasePrices[it.id].toLocaleString()}">
+    </div>
+  `).join('');
+  FIXED_ITEMS.forEach(it => {
+    const el = document.getElementById(`bp-${it.id}`);
+    attachKoreanAmountInput(el, (v) => {
+      itemBasePrices[it.id] = v;
+      saveItemBasePrices();
+    });
+  });
+}
+
+(async function init(){
+  document.getElementById('f-date').value = todayLocalISO();
+  loadItemBasePrices();
+  renderItemsSection();
+  renderBasePriceSettings();
+  loadSettings();
+  renderRegisteredList();
+  populateCharSelect();
+  await loadEntries();
+  renderAll();
+  renderCharCards();
+})();
+</script>
+</body>
+</html>
